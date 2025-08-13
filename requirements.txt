@@ -1,0 +1,8 @@
+PyMuPDF==1.24.9
+sentence-transformers==3.0.1
+faiss-cpu==1.8.0
+spacy==3.7.5
+nltk==3.8.1
+numpy==1.26.4
+pytesseract==0.3.10
+pyyaml==6.0.1

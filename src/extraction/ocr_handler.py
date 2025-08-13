@@ -1,0 +1,1 @@
+# OCR handling for scanned PDFs
