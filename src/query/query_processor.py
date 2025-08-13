@@ -131,7 +131,7 @@ def main():
     metadata_path = "indexes/faiss_metadata.json"
     chunks_path = "data/processed/chunks/Unit 1_text_processed.json"  # Path to your JSON
     processor = QueryProcessor(index_path, metadata_path, chunks_path, top_k=10)
-    query = "What is Data Science?"
+    query = "tell what are the topics are there in this file"
     results = processor.get_results(query)
     for result in results:
         logger.info(f"Result: {result}")

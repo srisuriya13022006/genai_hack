@@ -1,0 +1,9 @@
+# Pipeline settings
+raw_dir: data/processed/raw_text
+chunks_dir: data/processed/chunks
+embeddings_dir: data/processed/embeddings
+index_dir: indexes
+input_dir: data/input/textbooks
+chunk_size: 512
+overlap: 50
+top_k: 10
