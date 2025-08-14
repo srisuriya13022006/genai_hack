@@ -1,0 +1,191 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%);
+  color: #1a202c;
+  line-height: 1.6;
+  /* Removed min-height: 100vh to prevent extra space */
+}
+
+.app {
+  /* Removed min-height: 100vh to prevent bottom space */
+  padding: 80px 0 20px 0; /* Top padding for navbar, minimal bottom */
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 40px; /* Increased padding for better content spacing */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+  width: 100%;
+  margin: 0 auto; /* Center the card */
+  /* Removed min-height to let content determine height */
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* File upload specific styles */
+.file-upload-area {
+  background: #f8fafc;
+  border: 2px dashed #cbd5e0;
+  border-radius: 8px;
+  padding: 40px;
+  text-align: center;
+  transition: all 0.3s ease;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.file-upload-area:hover,
+.file-upload-area.dragover {
+  border-color: #4c51bf;
+  background: #edf2f7;
+}
+
+.btn {
+  background: linear-gradient(45deg, #4c51bf, #6b46c1);
+  color: #fff;
+  border: none;
+  padding: 12px 24px; /* Slightly larger for better touch targets */
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(76, 81, 191, 0.3);
+  background: linear-gradient(45deg, #434190, #5f3ea0);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-secondary {
+  background: #edf2f7;
+  color: #2d3748;
+  border: 1px solid #e2e8f0;
+}
+
+.btn-secondary:hover {
+  background: #e2e8f0;
+  color: #1a202c;
+}
+
+.grid {
+  display: grid;
+  gap: 20px;
+}
+
+.grid-2 {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.grid-3 {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.grid-4 {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+/* Responsive grid for file uploads - larger cards */
+.grid-file-upload {
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 30px;
+}
+
+.loading {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #4c51bf;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.slide-in {
+  animation: slideIn 0.5s ease-out forwards;
+}
+
+.pulse {
+  animation: pulse 2s infinite;
+}
+
+@media (max-width: 768px) {
+  .app {
+    padding: 70px 0 10px 0; /* Adjust for mobile navbar */
+  }
+  
+  .grid-2, .grid-3, .grid-4, .grid-file-upload {
+    grid-template-columns: 1fr;
+  }
+  
+  .card {
+    padding: 25px; /* Adequate padding on mobile */
+    margin: 0 10px; /* Small side margins on mobile */
+  }
+  
+  .file-upload-area {
+    padding: 30px 20px;
+    min-height: 150px;
+  }
+  
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}   
