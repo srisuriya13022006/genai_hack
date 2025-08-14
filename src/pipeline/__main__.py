@@ -105,6 +105,7 @@ import json
 from pathlib import Path
 import logging
 from typing import List, Dict
+import requests
 import google.generativeai as genai
 from dotenv import load_dotenv
 import time
@@ -214,7 +215,8 @@ def main():
     parser.add_argument('--query', type=str, help="Query to process", default="What is Data Science?")
     parser.add_argument('--config', type=str, default="config.yaml", help="Path to configuration file")
     parser.add_argument('--reprocess', action='store_true', help="Force reprocess all data")
-    parser.add_argument('--model', type=str, default="gemini-2.0-flash", help="Gemini model to use (e.g., gemini-2.0-flash or gemini-1.5-pro)")
+    parser.add_argument('--model', type=str, default="http://localhost:6000/generate", help="URL for the local model endpoint")
+    parser.add_argument('--gemini-model', type=str, default="gemini-2.0-flash", help="Gemini model to use")
     parser.add_argument('--no-api', action='store_true', help="Run CLI mode without starting the API server")
     args = parser.parse_args()
 
@@ -248,13 +250,14 @@ def main():
         for result in results:
             result['chunk_text'] = load_chunk_text(chunks_dir, result['doc_name'], result['chunk_id'])
             logger.info(f"Result: {result}")
-        answer = pipeline.generate_answer(args.query, results, model=args.model)
+        answer = pipeline.generate_answer(args.query, results, model=args.model, gemini_model=args.gemini_model)
         logger.info(f"Generated Answer: {answer}")
     else:
         # Start Flask API server
         app.pipeline = pipeline
         app.config['chunks_dir'] = chunks_dir
         app.config['model'] = args.model
+        app.config['gemini_model'] = args.gemini_model
         app.config['input_dir'] = input_dir
         app.run(debug=True, host='0.0.0.0', port=5000)
 
@@ -285,7 +288,8 @@ def handle_query():
 
     query_text = data['query']
     top_k = data.get('top_k', 10)
-    model = app.config.get('model', 'gemini-2.0-flash')
+    model = app.config.get('model', 'http://localhost:6000/generate')
+    gemini_model = app.config.get('gemini_model', 'gemini-2.0-flash')
 
     # Use the pipeline instance stored in the app
     pipeline = app.pipeline
@@ -293,7 +297,7 @@ def handle_query():
     for result in results:
         result['chunk_text'] = load_chunk_text(app.config['chunks_dir'], result['doc_name'], result['chunk_id'])
 
-    answer = pipeline.generate_answer(query_text, results, model=model)
+    answer = pipeline.generate_answer(query_text, results, model=model, gemini_model=gemini_model)
 
     response = {
         "query": query_text,
@@ -323,7 +327,7 @@ def get_uploaded_files():
 def get_resources():
     """Endpoint to generate and return recommended resources based on processed raw text using Gemini."""
     pipeline = app.pipeline
-    model = app.config.get('model', 'gemini-2.0-flash')
+    model = app.config.get('gemini_model', 'gemini-2.0-flash')
     resources = pipeline.generate_resources(model)
     return jsonify(resources)
 
@@ -334,7 +338,7 @@ def get_quiz():
     if not topic:
         return jsonify({"error": "Topic is required"}), 400
     pipeline = app.pipeline
-    model = app.config.get('model', 'gemini-2.0-flash')
+    model = app.config.get('gemini_model', 'gemini-2.0-flash')
     questions = pipeline.generate_quiz(topic, difficulty, model)
     return jsonify({"questions": questions})
 
@@ -382,33 +386,34 @@ class StudyMatePipeline:
         results = processor.get_results(query_text)
         return results
 
-    def generate_answer(self, query_text: str, results: List[Dict], model: str = "gemini-2.0-flash") -> str:
-        """Generate an answer using Gemini based on the retrieved chunks."""
+    def generate_answer(self, query_text: str, results: List[Dict], model: str = "http://localhost:6000/generate", gemini_model: str = "gemini-2.0-flash") -> str:
+        """Generate an answer using the local Granite model via the /generate endpoint, with fallback to Gemini after 10s."""
         results = sorted(results, key=lambda x: x['distance'])[:3]
         context = ""
         for result in results:
             context += f"Chunk ID: {result['chunk_id']}\nDistance: {result['distance']}\nText: {result['chunk_text']}\n\n"
 
         if not context:
-            logger.warning("No context available for Gemini generation")
+            logger.warning("No context available for answer generation")
             return "No relevant information found."
 
         prompt = f"Based on the following context from retrieved documents, provide a clear and concise answer to the query: '{query_text}'.\n\nContext:\n{context}"
 
-        max_retries = 3
-        for attempt in range(max_retries):
+        try:
+            # Attempt Granite with a 10-second timeout
+            response = requests.post(model, json={"prompt": prompt}, timeout=10)
+            response.raise_for_status()
+            return response.json()["response"]
+        except requests.RequestException as e:
+            logger.error(f"Granite failed to respond within 10s: {str(e)}")
+            logger.warning("Falling back to Gemini due to Granite timeout")
             try:
-                model_instance = genai.GenerativeModel(model)
+                model_instance = genai.GenerativeModel(gemini_model)
                 response = model_instance.generate_content(prompt)
                 return response.text
             except Exception as e:
-                logger.error(f"Error generating answer with Gemini: {str(e)}")
-                if attempt < max_retries - 1:
-                    logger.warning(f"Retrying in 17 seconds (Attempt {attempt + 1}/{max_retries})")
-                    time.sleep(17)
-                else:
-                    return "Failed to generate answer after retries."
-        return "Failed to generate answer after retries."
+                logger.error(f"Error calling Gemini fallback: {str(e)}")
+                return "Failed to generate answer after fallback."
 
     def generate_resources(self, model: str) -> Dict[str, List[Dict]]:
         """Generate recommended resources using Gemini based on raw text content."""
@@ -536,6 +541,23 @@ class StudyMatePipeline:
         except Exception as e:
             logger.error(f"Failed to generate quiz for {topic}: {e}")
             return []
+
+    def _call_model(self, prompt: str, model: str) -> str:
+        """Internal method to call the local Granite model via the /generate endpoint with retry logic."""
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(model, json={"prompt": prompt}, timeout=120)
+                response.raise_for_status()
+                return response.json()["response"]
+            except requests.RequestException as e:
+                logger.error(f"Error calling Granite model: {str(e)}")
+                if attempt < max_retries - 1:
+                    logger.warning(f"Retrying in 17 seconds (Attempt {attempt + 1}/{max_retries})")
+                    time.sleep(17)
+                else:
+                    return "Failed to generate after retries."
+        return "Failed to generate after retries."
 
     def _call_gemini(self, prompt: str, model: str) -> str:
         """Internal method to call Gemini with retry logic."""
